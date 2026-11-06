@@ -100,72 +100,6 @@ The first failing block stops that file, and the runner prints the SQL, what was
 
 For example, in `test/sql/local/iceberg_scans/iceberg_schemas.test`, `include` loads the extensions, each `query IIIIIII` runs `iceberg_schemas(...)` and compares the seven columns, and the final `statement error` checks that a non-Iceberg table fails with "not an Iceberg table".
 
-## Test Directory Structure
-
-The extension's tests live under `test/`. Counts are `.test` and `.test_slow` files as of November 2026; they grow over time.
-
-```
-test/
-├── sql/                      849 sqllogictests
-│   ├── local/                805: run on your machine
-│   │   ├── *.test             39 loose tests (deletes, schema evolution, defaults, row lineage…)
-│   │   ├── iceberg_scans/     36: reading local tables, metadata functions
-│   │   ├── partitioning/      24: partition pruning and filters (identity/, day/, year/)
-│   │   ├── maintenance/        2: argument validation for maintenance functions
-│   │   ├── native_catalog/    17: in-process mock catalog only
-│   │   ├── catalog_custom_setup/       56: tests that set up their own catalog connection
-│   │   └── catalog_test_config_setup/ 631: tests run against "the active catalog"
-│   │       ├── catalog_agnostic/      583: behavior shared by all REST catalogs
-│   │       ├── catalog_specifc/        19: one catalog's behavior
-│   │       └── catalog_interop/        28: DuckDB together with Spark/PyIceberg
-│   ├── copy/                   6: COPY … TO (FORMAT ICEBERG)
-│   ├── cloud/                 37: real cloud services
-│   └── iceberg_to_ducklake.test_slow
-├── configs/                  one JSON per catalog (mock, mock_native, fixture, polaris, …)
-├── python/                   pytest integration tests (Spark, PyIceberg)
-├── native_catalog/           C++ source of the in-process mock catalog + its C++ tests
-└── scripts/                  a test for the OpenAPI code generator
-```
-
-### How each part runs
-
-**No catalog: `local/*.test`, `iceberg_scans/`, `partitioning/`, `maintenance/`, `copy/`**
-
-These read local Iceberg tables from `data/persistent/` with `iceberg_scan()` and functions like `iceberg_metadata()`, so they need no `--test-config`. About 22 tests need Spark-generated data and are skipped without it (`DUCKDB_ICEBERG_HAVE_GENERATED_DATA`).
-
-**The active catalog: `catalog_test_config_setup/`**
-
-This is most of the suite. Each test starts with `require-env CATALOG_TEST_CONFIG_SETUP` and uses `my_datalake`, which the config's `on_init` attaches, so the same test file runs against whichever catalog's config is passed.
-
-- **`catalog_agnostic/`** is grouped by operation. The biggest folders are `insert/` (120), `alter/` (70), `delete/` (70), `reads/` (48), `create/` (46), `maintenance/` (39) and `update/` (29). Smaller ones cover `merge/`, `sorting/`, `transactions/`, `capabilities/`, `partitioning/`, `table_properties/` and others. `setup/` holds shared `*.test_setup` include files, not tests. `mock_native.json` runs this whole folder in-process.
-- **`catalog_specifc/<catalog>/`** has subfolders for `fixture`, `lakekeeper`, `nessie` and `polaris`. Each runs only with that catalog's config.
-- **`catalog_interop/`** covers Spark and PyIceberg interplay (`other_engines/`, `reads/`, `insert/`, …). These tests need the Docker catalogs and their `*-data` targets.
-
-**Their own setup: `catalog_custom_setup/<catalog>/`**
-
-These do their own `CREATE SECRET` and `ATTACH`, with non-default options such as no default namespace, SigV4 signing or nested namespaces. They're gated by their own variable, for example `require-env FIXTURE_SERVER_AVAILABLE`. Subfolders: `fixture` (40), `nessie` (8), `sigv4_mock` (5), `lakekeeper` (2), `polaris` (1).
-
-**In-process mock only: `native_catalog/`**
-
-These need `--test-config test/configs/mock_native.json`, because they rely on that mock's control over the catalog: failure injection, protocol details, and table types DuckDB can't create, such as `geography`.
-
-**Real cloud services: `cloud/`**
-
-Subfolders for `glue`, `s3tables`, `r2_catalog`, `snowflake` and `gcloud`, gated by variables like `ICEBERG_AWS_REMOTE_AVAILABLE`. Locally they're always skipped; CI runs them with credentials.
-
-**Outside sqllogictest**
-
-- `test/python/`: pytest tests where Spark or PyIceberg reads or writes the same tables as DuckDB. They need an active REST catalog; `test/python/cloud/` only runs when requested explicitly.
-- `test/native_catalog/`: the C++ mock catalog's source, plus C++ tests built as `unittest_iceberg_native`.
-
-### Which folder a new test goes in
-
-1. Can it work on a local table with no catalog? Use `local/`, or `iceberg_scans/` for scan or metadata functions.
-2. Does it need a catalog, and should it behave the same everywhere? Use `catalog_agnostic/<operation>/`.
-3. Is it only true for one catalog? Use `catalog_specifc/<catalog>/`, or add a skip in the other catalogs' configs.
-4. Does it need its own `ATTACH` options? Use `catalog_custom_setup/<catalog>/`.
-5. Does Spark or PyIceberg need to be involved? Use `catalog_interop/` or `test/python/`.
-
 ## Writing a Test
 
 Sources: `duckdb/AGENTS.md`, `duckdb/CONTRIBUTING.md`, the repository's `AGENTS.md` and `test/sql/local/catalog_test_config_setup/README.md`.
@@ -235,3 +169,69 @@ They belong to two different projects. `duckdb/` is a git submodule: a copy of u
 `unittest` is built from `duckdb/test/` code but runs the files in `test/`. The two also meet in `test/configs/fixture_duckdb_tests.json`, which runs parts of DuckDB's own `duckdb/test/sql/` suite against an Iceberg catalog.
 
 Nothing under `duckdb/` should be edited from this repository. Changes there belong upstream in DuckDB.
+
+## Iceberg Test Directory Structure
+
+The extension's tests live under `test/`. Counts are `.test` and `.test_slow` files as of November 2026; they grow over time.
+
+```
+test/
+├── sql/                      849 sqllogictests
+│   ├── local/                805: run on your machine
+│   │   ├── *.test             39 loose tests (deletes, schema evolution, defaults, row lineage…)
+│   │   ├── iceberg_scans/     36: reading local tables, metadata functions
+│   │   ├── partitioning/      24: partition pruning and filters (identity/, day/, year/)
+│   │   ├── maintenance/        2: argument validation for maintenance functions
+│   │   ├── native_catalog/    17: in-process mock catalog only
+│   │   ├── catalog_custom_setup/       56: tests that set up their own catalog connection
+│   │   └── catalog_test_config_setup/ 631: tests run against "the active catalog"
+│   │       ├── catalog_agnostic/      583: behavior shared by all REST catalogs
+│   │       ├── catalog_specifc/        19: one catalog's behavior
+│   │       └── catalog_interop/        28: DuckDB together with Spark/PyIceberg
+│   ├── copy/                   6: COPY … TO (FORMAT ICEBERG)
+│   ├── cloud/                 37: real cloud services
+│   └── iceberg_to_ducklake.test_slow
+├── configs/                  one JSON per catalog (mock, mock_native, fixture, polaris, …)
+├── python/                   pytest integration tests (Spark, PyIceberg)
+├── native_catalog/           C++ source of the in-process mock catalog + its C++ tests
+└── scripts/                  a test for the OpenAPI code generator
+```
+
+### How each part runs
+
+**No catalog: `local/*.test`, `iceberg_scans/`, `partitioning/`, `maintenance/`, `copy/`**
+
+These read local Iceberg tables from `data/persistent/` with `iceberg_scan()` and functions like `iceberg_metadata()`, so they need no `--test-config`. About 22 tests need Spark-generated data and are skipped without it (`DUCKDB_ICEBERG_HAVE_GENERATED_DATA`).
+
+**The active catalog: `catalog_test_config_setup/`**
+
+This is most of the suite. Each test starts with `require-env CATALOG_TEST_CONFIG_SETUP` and uses `my_datalake`, which the config's `on_init` attaches, so the same test file runs against whichever catalog's config is passed.
+
+- **`catalog_agnostic/`** is grouped by operation. The biggest folders are `insert/` (120), `alter/` (70), `delete/` (70), `reads/` (48), `create/` (46), `maintenance/` (39) and `update/` (29). Smaller ones cover `merge/`, `sorting/`, `transactions/`, `capabilities/`, `partitioning/`, `table_properties/` and others. `setup/` holds shared `*.test_setup` include files, not tests. `mock_native.json` runs this whole folder in-process.
+- **`catalog_specifc/<catalog>/`** has subfolders for `fixture`, `lakekeeper`, `nessie` and `polaris`. Each runs only with that catalog's config.
+- **`catalog_interop/`** covers Spark and PyIceberg interplay (`other_engines/`, `reads/`, `insert/`, …). These tests need the Docker catalogs and their `*-data` targets.
+
+**Their own setup: `catalog_custom_setup/<catalog>/`**
+
+These do their own `CREATE SECRET` and `ATTACH`, with non-default options such as no default namespace, SigV4 signing or nested namespaces. They're gated by their own variable, for example `require-env FIXTURE_SERVER_AVAILABLE`. Subfolders: `fixture` (40), `nessie` (8), `sigv4_mock` (5), `lakekeeper` (2), `polaris` (1).
+
+**In-process mock only: `native_catalog/`**
+
+These need `--test-config test/configs/mock_native.json`, because they rely on that mock's control over the catalog: failure injection, protocol details, and table types DuckDB can't create, such as `geography`.
+
+**Real cloud services: `cloud/`**
+
+Subfolders for `glue`, `s3tables`, `r2_catalog`, `snowflake` and `gcloud`, gated by variables like `ICEBERG_AWS_REMOTE_AVAILABLE`. Locally they're always skipped; CI runs them with credentials.
+
+**Outside sqllogictest**
+
+- `test/python/`: pytest tests where Spark or PyIceberg reads or writes the same tables as DuckDB. They need an active REST catalog; `test/python/cloud/` only runs when requested explicitly.
+- `test/native_catalog/`: the C++ mock catalog's source, plus C++ tests built as `unittest_iceberg_native`.
+
+### Which folder a new test goes in
+
+1. Can it work on a local table with no catalog? Use `local/`, or `iceberg_scans/` for scan or metadata functions.
+2. Does it need a catalog, and should it behave the same everywhere? Use `catalog_agnostic/<operation>/`.
+3. Is it only true for one catalog? Use `catalog_specifc/<catalog>/`, or add a skip in the other catalogs' configs.
+4. Does it need its own `ATTACH` options? Use `catalog_custom_setup/<catalog>/`.
+5. Does Spark or PyIceberg need to be involved? Use `catalog_interop/` or `test/python/`.
