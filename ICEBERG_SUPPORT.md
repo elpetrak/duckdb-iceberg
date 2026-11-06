@@ -14,12 +14,12 @@ Each feature has a status for reading and for writing:
 
 | Status | Meaning |
 |---|---|
-| _supported_ | Works as the spec describes |
-| _partial_ | Works with limitations, described in the notes |
-| _rejected_ | Not supported, and DuckDB raises a clear error |
-| _incorrect_ | Not supported, and DuckDB silently ignores it or returns wrong results |
-| _n/a_ | Does not apply (for example, a read-only concept) |
-| _unverified_ | Not checked yet |
+| ✅ | Supported: works as the spec describes |
+| 🟡 | Partial: works with limitations, described in the notes |
+| ❌ | Rejected: not supported, and DuckDB raises a clear error |
+| ⚠️ | Incorrect: not supported, and DuckDB silently ignores it or returns wrong results |
+| ➖ | Not applicable (for example, writing a read-only concept) |
+| ❔ | Unverified: not checked yet |
 
 Test paths are relative to the repository root, using these abbreviations:
 
@@ -38,78 +38,78 @@ Each entry records the duckdb-iceberg commit it was checked against, because sup
 
 | Read | Write | Feature | Spec | Test | Notes |
 |---|---|---|---|---|---|
-| _unverified_ | _unverified_ | **Primitive types** | [Primitive Types](https://iceberg.apache.org/spec/#primitive-types) | `SCAN/iceberg_scan.test`, `L/iceberg_fixed_type.test` | |
-| _unverified_ | _unverified_ | **Nested types** (`struct`, `list`, `map`) | [Nested Types](https://iceberg.apache.org/spec/#nested-types) | `L/nested_types.test`, `CA/irc_nested_types.test` | |
-| _unverified_ | _unverified_ | **Field docs** | [Nested Types](https://iceberg.apache.org/spec/#nested-types) | `CA/test_column_doc_comment.test` | |
-| _unverified_ | _unverified_ | **Multiple schemas** (`schemas`, `current-schema-id`) | [Table Metadata Fields](https://iceberg.apache.org/spec/#table-metadata-fields) | `SCAN/iceberg_schemas.test` | |
-| _unverified_ | _unverified_ | **Schema evolution**: add, drop, rename columns and fields | [Schema Evolution](https://iceberg.apache.org/spec/#schema-evolution) | `CA/alter/`, `L/schema_evolve_struct.test` | |
-| _unverified_ | _unverified_ | **Type promotion** (`int`→`long`, `float`→`double`, decimal widening) | [Schema Evolution](https://iceberg.apache.org/spec/#schema-evolution) | `L/schema_evolve_int_to_bigint.test`, `L/schema_evolve_widen_decimal.test` | |
-| _unverified_ | _n/a_ | **Column projection by field id** | [Column Projection](https://iceberg.apache.org/spec/#column-projection) | `L/column_mapping.test` | |
-| _unverified_ | _unverified_ | **Name mapping** (`schema.name-mapping.default`) | [Name Mapping Serialization](https://iceberg.apache.org/spec/#name-mapping-serialization) | `NC/name_mapping_reads.test`, `CA/alter/name_mapping_update.test` | |
-| _unverified_ | _unverified_ | **Identifier field ids** | [Identifier Field IDs](https://iceberg.apache.org/spec/#identifier-field-ids) | | |
+| ✅ | ✅ | **Primitive types** (v1: `boolean`, `int`, `long`, `float`, `double`, `decimal(P,S)`, `date`, `time`, `timestamp`, `timestamptz`, `string`, `uuid`, `fixed(L)`, `binary`) | [Primitive Types](https://iceberg.apache.org/spec/#primitive-types) | `L/iceberg_fixed_type.test`, `CA/create/test_create_table_as.test`, `CA/create/test_create_fixed_type.test`, `CA/maintenance/rewrite_data_files_all_types.test`; read by hand: `DATA/add_columns_with_defaults` | `fixed(L)` maps to the extension type `ICEBERG_FIXED(L)`. DuckDB-only types such as `INTERVAL` are rejected on write. See session log 2026-11-06 |
+| ❔ | ❔ | **Nested types** (`struct`, `list`, `map`) | [Nested Types](https://iceberg.apache.org/spec/#nested-types) | `L/nested_types.test`, `CA/irc_nested_types.test` | |
+| ❔ | ❔ | **Field docs** | [Nested Types](https://iceberg.apache.org/spec/#nested-types) | `CA/test_column_doc_comment.test` | |
+| ❔ | ❔ | **Multiple schemas** (`schemas`, `current-schema-id`) | [Table Metadata Fields](https://iceberg.apache.org/spec/#table-metadata-fields) | `SCAN/iceberg_schemas.test` | |
+| ❔ | ❔ | **Schema evolution**: add, drop, rename columns and fields | [Schema Evolution](https://iceberg.apache.org/spec/#schema-evolution) | `CA/alter/`, `L/schema_evolve_struct.test` | |
+| ❔ | ❔ | **Type promotion** (`int`→`long`, `float`→`double`, decimal widening) | [Schema Evolution](https://iceberg.apache.org/spec/#schema-evolution) | `L/schema_evolve_int_to_bigint.test`, `L/schema_evolve_widen_decimal.test` | |
+| ❔ | ➖ | **Column projection by field id** | [Column Projection](https://iceberg.apache.org/spec/#column-projection) | `L/column_mapping.test` | |
+| ❔ | ❔ | **Name mapping** (`schema.name-mapping.default`) | [Name Mapping Serialization](https://iceberg.apache.org/spec/#name-mapping-serialization) | `NC/name_mapping_reads.test`, `CA/alter/name_mapping_update.test` | |
+| ❔ | ❔ | **Identifier field ids** | [Identifier Field IDs](https://iceberg.apache.org/spec/#identifier-field-ids) | | |
 
 ### Partitioning
 
 | Read | Write | Feature | Spec | Test | Notes |
 |---|---|---|---|---|---|
-| _unverified_ | _unverified_ | **Identity transform** | [Partition Transforms](https://iceberg.apache.org/spec/#partition-transforms) | `PART/identity/` | |
-| _unverified_ | _unverified_ | **Bucket transform** | [Bucket Transform Details](https://iceberg.apache.org/spec/#bucket-transform-details) | `CA/insert/partitions/bucket/`, `CA/functions/test_iceberg_bucket.test` | |
-| _unverified_ | _unverified_ | **Truncate transform** | [Truncate Transform Details](https://iceberg.apache.org/spec/#truncate-transform-details) | `CA/insert/partitions/truncate/`, `CA/functions/test_iceberg_truncate.test` | |
-| _unverified_ | _unverified_ | **Temporal transforms** (`year`, `month`, `day`, `hour`) | [Partition Transforms](https://iceberg.apache.org/spec/#partition-transforms) | `CA/delete/partitions/delete_temporal_transforms.test` | |
-| _unverified_ | _unverified_ | **Partition evolution** | [Partition Evolution](https://iceberg.apache.org/spec/#partition-evolution) | `CA/alter/test_alter_partitioned_by.test`, `CA/delete/partitions/delete_after_partition_spec_evolution.test` | |
-| _unverified_ | _n/a_ | **Partition pruning** | [Scan Planning](https://iceberg.apache.org/spec/#scan-planning) | `CA/insert/partitions/multi_insert/test_manifest_skip_combined_transforms.test` | |
+| ❔ | ❔ | **Identity transform** | [Partition Transforms](https://iceberg.apache.org/spec/#partition-transforms) | `PART/identity/` | |
+| ❔ | ❔ | **Bucket transform** | [Bucket Transform Details](https://iceberg.apache.org/spec/#bucket-transform-details) | `CA/insert/partitions/bucket/`, `CA/functions/test_iceberg_bucket.test` | |
+| ❔ | ❔ | **Truncate transform** | [Truncate Transform Details](https://iceberg.apache.org/spec/#truncate-transform-details) | `CA/insert/partitions/truncate/`, `CA/functions/test_iceberg_truncate.test` | |
+| ❔ | ❔ | **Temporal transforms** (`year`, `month`, `day`, `hour`) | [Partition Transforms](https://iceberg.apache.org/spec/#partition-transforms) | `CA/delete/partitions/delete_temporal_transforms.test` | |
+| ❔ | ❔ | **Partition evolution** | [Partition Evolution](https://iceberg.apache.org/spec/#partition-evolution) | `CA/alter/test_alter_partitioned_by.test`, `CA/delete/partitions/delete_after_partition_spec_evolution.test` | |
+| ❔ | ➖ | **Partition pruning** | [Scan Planning](https://iceberg.apache.org/spec/#scan-planning) | `CA/insert/partitions/multi_insert/test_manifest_skip_combined_transforms.test` | |
 
 ### Sorting
 
 | Read | Write | Feature | Spec | Test | Notes |
 |---|---|---|---|---|---|
-| _n/a_ | _unverified_ | **Sort orders** | [Sorting](https://iceberg.apache.org/spec/#sorting) | `CA/alter/sorted_by/` | |
+| ➖ | ❔ | **Sort orders** | [Sorting](https://iceberg.apache.org/spec/#sorting) | `CA/alter/sorted_by/` | |
 
 ### Snapshots
 
 | Read | Write | Feature | Spec | Test | Notes |
 |---|---|---|---|---|---|
-| _unverified_ | _n/a_ | **Time travel by snapshot id and timestamp** | [Point in Time Reads](https://iceberg.apache.org/spec/#point-in-time-reads-time-travel) | `L/time_travel_after_last_snapshot.test`, `L/time_travel_before_first_snapshot.test` | |
-| _unverified_ | _unverified_ | **Branches and tags** (`refs`) | [Snapshot References](https://iceberg.apache.org/spec/#snapshot-references) | `SCAN/iceberg_metadata.test` (data: `DATA/snapshot_refs`), `NC/snapshot_ref_retention.test` | |
-| _n/a_ | _unverified_ | **Rollback to snapshot** | [Snapshots](https://iceberg.apache.org/spec/#snapshots) | `CA/maintenance/rollback_to_snapshot.test` | |
-| _n/a_ | _unverified_ | **Snapshot retention / expiration** | [Snapshot Retention Policy](https://iceberg.apache.org/spec/#snapshot-retention-policy) | | |
+| ❔ | ➖ | **Time travel by snapshot id and timestamp** | [Point in Time Reads](https://iceberg.apache.org/spec/#point-in-time-reads-time-travel) | `L/time_travel_after_last_snapshot.test`, `L/time_travel_before_first_snapshot.test` | |
+| ❔ | ❔ | **Branches and tags** (`refs`) | [Snapshot References](https://iceberg.apache.org/spec/#snapshot-references) | `SCAN/iceberg_metadata.test` (data: `DATA/snapshot_refs`), `NC/snapshot_ref_retention.test` | |
+| ➖ | ❔ | **Rollback to snapshot** | [Snapshots](https://iceberg.apache.org/spec/#snapshots) | `CA/maintenance/rollback_to_snapshot.test` | |
+| ➖ | ❔ | **Snapshot retention / expiration** | [Snapshot Retention Policy](https://iceberg.apache.org/spec/#snapshot-retention-policy) | | |
 
 ### Table Metadata and Manifests
 
 | Read | Write | Feature | Spec | Test | Notes |
 |---|---|---|---|---|---|
-| _unverified_ | _unverified_ | **v1 tables** | [Version 1](https://iceberg.apache.org/spec/#version-1-analytic-data-tables) | `L/test_v1_manifest_entry.test`, `CA/test_v1_unsupported_writes.test` | |
-| _unverified_ | _n/a_ | **File system tables** (`version-hint.text`) | [File System Tables](https://iceberg.apache.org/spec/#file-system-tables) | `SCAN/iceberg_scan.test` | |
-| _unverified_ | _n/a_ | **GZIP-compressed metadata** | [Naming for GZIP compressed Metadata JSON files](https://iceberg.apache.org/spec/#naming-for-gzip-compressed-metadata-json-files) | | |
-| _unverified_ | _unverified_ | **Column metrics and bounds** | [Field-level Metrics and Statistics](https://iceberg.apache.org/spec/#field-level-metrics-and-statistics) | `L/null_stats.test`, `L/generated_bounds.test` | |
-| _unverified_ | _unverified_ | **Table statistics** (Puffin) | [Table Statistics](https://iceberg.apache.org/spec/#table-statistics) | | |
+| ❔ | ❔ | **v1 tables** | [Version 1](https://iceberg.apache.org/spec/#version-1-analytic-data-tables) | `L/test_v1_manifest_entry.test`, `CA/test_v1_unsupported_writes.test` | |
+| ❔ | ➖ | **File system tables** (`version-hint.text`) | [File System Tables](https://iceberg.apache.org/spec/#file-system-tables) | `SCAN/iceberg_scan.test` | |
+| ❔ | ➖ | **GZIP-compressed metadata** | [Naming for GZIP compressed Metadata JSON files](https://iceberg.apache.org/spec/#naming-for-gzip-compressed-metadata-json-files) | | |
+| ❔ | ❔ | **Column metrics and bounds** | [Field-level Metrics and Statistics](https://iceberg.apache.org/spec/#field-level-metrics-and-statistics) | `L/null_stats.test`, `L/generated_bounds.test` | |
+| ❔ | ❔ | **Table statistics** (Puffin) | [Table Statistics](https://iceberg.apache.org/spec/#table-statistics) | | |
 
 ## Version 2: Row-level Deletes
 
 | Read | Write | Feature | Spec | Test | Notes |
 |---|---|---|---|---|---|
-| _unverified_ | _unverified_ | **Sequence numbers and inheritance** | [Sequence Number Inheritance](https://iceberg.apache.org/spec/#sequence-number-inheritance) | `CA/maintenance/rewrite_manifest_inheritance_upgrade.test` | |
-| _unverified_ | _unverified_ | **Position delete files** | [Position Delete Files](https://iceberg.apache.org/spec/#position-delete-files) | `CA/delete/test_positional_delete_filename_bounds.test` | check whether DuckDB writes them for v2 tables |
-| _unverified_ | _unverified_ | **Equality delete files** | [Equality Delete Files](https://iceberg.apache.org/spec/#equality-delete-files) | `L/equality_deletes.test`, `CA/delete/equality_deletes/` | |
-| _n/a_ | _unverified_ | **`DELETE`** | [Row-level Deletes](https://iceberg.apache.org/spec/#row-level-deletes) | `CA/delete/` | |
-| _n/a_ | _unverified_ | **`UPDATE`** | [Row-level Deletes](https://iceberg.apache.org/spec/#row-level-deletes) | `CA/update/` | |
-| _n/a_ | _unverified_ | **`MERGE INTO`** | [Row-level Deletes](https://iceberg.apache.org/spec/#row-level-deletes) | `CA/merge/` | |
-| _n/a_ | _unverified_ | **Optimistic concurrency / commit retry** | [Commit Conflict Resolution and Retry](https://iceberg.apache.org/spec/#commit-conflict-resolution-and-retry) | `CA/transactions/` | |
+| ❔ | ❔ | **Sequence numbers and inheritance** | [Sequence Number Inheritance](https://iceberg.apache.org/spec/#sequence-number-inheritance) | `CA/maintenance/rewrite_manifest_inheritance_upgrade.test` | |
+| ❔ | ❔ | **Position delete files** | [Position Delete Files](https://iceberg.apache.org/spec/#position-delete-files) | `CA/delete/test_positional_delete_filename_bounds.test` | check whether DuckDB writes them for v2 tables |
+| ❔ | ❔ | **Equality delete files** | [Equality Delete Files](https://iceberg.apache.org/spec/#equality-delete-files) | `L/equality_deletes.test`, `CA/delete/equality_deletes/` | |
+| ➖ | ❔ | **`DELETE`** | [Row-level Deletes](https://iceberg.apache.org/spec/#row-level-deletes) | `CA/delete/` | |
+| ➖ | ❔ | **`UPDATE`** | [Row-level Deletes](https://iceberg.apache.org/spec/#row-level-deletes) | `CA/update/` | |
+| ➖ | ❔ | **`MERGE INTO`** | [Row-level Deletes](https://iceberg.apache.org/spec/#row-level-deletes) | `CA/merge/` | |
+| ➖ | ❔ | **Optimistic concurrency / commit retry** | [Commit Conflict Resolution and Retry](https://iceberg.apache.org/spec/#commit-conflict-resolution-and-retry) | `CA/transactions/` | |
 
 ## Version 3: Extended Types and Capabilities
 
 | Read | Write | Feature | Spec | Test | Notes |
 |---|---|---|---|---|---|
-| _unverified_ | _unverified_ | **Default values** (`initial-default`, `write-default`) | [Default values](https://iceberg.apache.org/spec/#default-values) | `L/initial_default_all_types.test`, `CA/create/default/`, `CA/alter/alter_default.test` | |
-| _unverified_ | _unverified_ | **Nanosecond timestamps** (`timestamp_ns`, `timestamptz_ns`) | [Primitive Types](https://iceberg.apache.org/spec/#primitive-types) | `CA/alter/alter_type_timestamptz_ns_v3.test`, `CA/insert/partitions/timestamptz_ns/` | |
-| _unverified_ | _unverified_ | **`unknown` type** | [Primitive Types](https://iceberg.apache.org/spec/#primitive-types) | `CA/create/test_create_unknown_type.test`, `CA/insert/test_unknown_type_omitted_from_data_files.test` | |
-| _unverified_ | _unverified_ | **`variant` type** | [Semi-structured Types](https://iceberg.apache.org/spec/#semi-structured-types) | `CA/insert/iceberg_types/variant/`, `CA/file_properties/test_parquet_shred_variants.test` | |
-| _unverified_ | _unverified_ | **`geometry` / `geography` types** | [Primitive Types](https://iceberg.apache.org/spec/#primitive-types), [Appendix G](https://iceberg.apache.org/spec/#appendix-g-geospatial-notes) | `CA/insert/iceberg_types/test_geometry_type.test`, `NC/geography_column.test` | |
-| _unverified_ | _unverified_ | **Deletion vectors** | [Deletion Vectors](https://iceberg.apache.org/spec/#deletion-vectors) | `L/test_basic_deletion_vectors.test`, `CA/delete/test_grouped_deletion_vectors.test`, `CA/delete/test_delete_dv_supersedes_position_delete_file.test` | |
-| _unverified_ | _unverified_ | **Row lineage** (`_row_id`, `_last_updated_sequence_number`, `next-row-id`) | [Row Lineage](https://iceberg.apache.org/spec/#row-lineage) | `L/row_lineage_stored_columns.test`, `CA/test_row_lineage_write.test`, `CA/test_row_lineage_next_row_id.test` | |
-| _unverified_ | _unverified_ | **Multi-argument transforms** (`source-ids`) | [Partition Specs](https://iceberg.apache.org/spec/#partition-specs) | `CA/alter/test_partition_field_id_reuse_schema.test` | |
-| _unverified_ | _unverified_ | **Encryption keys** (`encryption-keys`, `key-id`) | [Encryption Keys](https://iceberg.apache.org/spec/#encryption-keys) | `SCAN/encrypted_table.test`, `CA/table_properties/test_reject_encryption_properties.test` | |
-| _n/a_ | _unverified_ | **Upgrading v2 → v3** | [Appendix E: Version 3](https://iceberg.apache.org/spec/#version-3) | `CA/alter/table_properties/test_upgrade_format_version_2_to_3.test` | |
+| ❔ | ❔ | **Default values** (`initial-default`, `write-default`) | [Default values](https://iceberg.apache.org/spec/#default-values) | `L/initial_default_all_types.test`, `CA/create/default/`, `CA/alter/alter_default.test` | |
+| ❔ | ❔ | **Nanosecond timestamps** (`timestamp_ns`, `timestamptz_ns`) | [Primitive Types](https://iceberg.apache.org/spec/#primitive-types) | `CA/alter/alter_type_timestamptz_ns_v3.test`, `CA/insert/partitions/timestamptz_ns/` | |
+| ❔ | ❔ | **`unknown` type** | [Primitive Types](https://iceberg.apache.org/spec/#primitive-types) | `CA/create/test_create_unknown_type.test`, `CA/insert/test_unknown_type_omitted_from_data_files.test` | |
+| ❔ | ❔ | **`variant` type** | [Semi-structured Types](https://iceberg.apache.org/spec/#semi-structured-types) | `CA/insert/iceberg_types/variant/`, `CA/file_properties/test_parquet_shred_variants.test` | |
+| ❔ | ❔ | **`geometry` / `geography` types** | [Primitive Types](https://iceberg.apache.org/spec/#primitive-types), [Appendix G](https://iceberg.apache.org/spec/#appendix-g-geospatial-notes) | `CA/insert/iceberg_types/test_geometry_type.test`, `NC/geography_column.test` | |
+| ❔ | ❔ | **Deletion vectors** | [Deletion Vectors](https://iceberg.apache.org/spec/#deletion-vectors) | `L/test_basic_deletion_vectors.test`, `CA/delete/test_grouped_deletion_vectors.test`, `CA/delete/test_delete_dv_supersedes_position_delete_file.test` | |
+| ❔ | ❔ | **Row lineage** (`_row_id`, `_last_updated_sequence_number`, `next-row-id`) | [Row Lineage](https://iceberg.apache.org/spec/#row-lineage) | `L/row_lineage_stored_columns.test`, `CA/test_row_lineage_write.test`, `CA/test_row_lineage_next_row_id.test` | |
+| ❔ | ❔ | **Multi-argument transforms** (`source-ids`) | [Partition Specs](https://iceberg.apache.org/spec/#partition-specs) | `CA/alter/test_partition_field_id_reuse_schema.test` | |
+| ❔ | ❔ | **Encryption keys** (`encryption-keys`, `key-id`) | [Encryption Keys](https://iceberg.apache.org/spec/#encryption-keys) | `SCAN/encrypted_table.test`, `CA/table_properties/test_reject_encryption_properties.test` | |
+| ➖ | ❔ | **Upgrading v2 → v3** | [Appendix E: Version 3](https://iceberg.apache.org/spec/#version-3) | `CA/alter/table_properties/test_upgrade_format_version_2_to_3.test` | |
 
 ## Version 4: Metadata Structure and Representation
 
@@ -117,13 +117,13 @@ Each entry records the duckdb-iceberg commit it was checked against, because sup
 
 | Read | Write | Feature | Spec | Test | Notes |
 |---|---|---|---|---|---|
-| _unverified_ | _unverified_ | **v4 tables** | [Version 4](https://iceberg.apache.org/spec/#version-4-metadata-structure-and-representation) | `SCAN/unsupported_format_version.test` (data: `DATA/format_version_4`) | |
-| _unverified_ | _unverified_ | **Relative paths and optional `location`** | [Paths in Metadata](https://iceberg.apache.org/spec/#paths-in-metadata) | | |
-| _n/a_ | _unverified_ | **No new equality deletes** | [Appendix E: Version 4](https://iceberg.apache.org/spec/#version-4) | | |
-| _unverified_ | _unverified_ | **Constraints / `primary-key`** | [Constraints](https://iceberg.apache.org/spec/#constraints) | `CA/create/test_create_table_unsupported_constraints.test` | |
-| _n/a_ | _unverified_ | **Strictly increasing snapshot `timestamp-ms`** | [Appendix E: Version 4](https://iceberg.apache.org/spec/#version-4) | | |
-| _unverified_ | _unverified_ | **`tracked_file` manifests and manifest deletion vectors** | [Manifest Schema](https://iceberg.apache.org/spec/#manifest-schema), [Manifest Deletion Vectors](https://iceberg.apache.org/spec/#manifest-deletion-vectors) | | |
-| _unverified_ | _unverified_ | **Content stats** | [Content Stats](https://iceberg.apache.org/spec/#content-stats) | | |
+| ❔ | ❔ | **v4 tables** | [Version 4](https://iceberg.apache.org/spec/#version-4-metadata-structure-and-representation) | `SCAN/unsupported_format_version.test` (data: `DATA/format_version_4`) | |
+| ❔ | ❔ | **Relative paths and optional `location`** | [Paths in Metadata](https://iceberg.apache.org/spec/#paths-in-metadata) | | |
+| ➖ | ❔ | **No new equality deletes** | [Appendix E: Version 4](https://iceberg.apache.org/spec/#version-4) | | |
+| ❔ | ❔ | **Constraints / `primary-key`** | [Constraints](https://iceberg.apache.org/spec/#constraints) | `CA/create/test_create_table_unsupported_constraints.test` | |
+| ➖ | ❔ | **Strictly increasing snapshot `timestamp-ms`** | [Appendix E: Version 4](https://iceberg.apache.org/spec/#version-4) | | |
+| ❔ | ❔ | **`tracked_file` manifests and manifest deletion vectors** | [Manifest Schema](https://iceberg.apache.org/spec/#manifest-schema), [Manifest Deletion Vectors](https://iceberg.apache.org/spec/#manifest-deletion-vectors) | | |
+| ❔ | ❔ | **Content stats** | [Content Stats](https://iceberg.apache.org/spec/#content-stats) | | |
 
 ## Session Log
 
@@ -139,3 +139,19 @@ One entry per session, newest first. Copy this template:
 - Result: <status> because <reason>
 - Follow-up: <issue link / PR idea / none>
 ```
+
+### 2026-11-06: Primitive types (v1)
+
+- Spec: [Primitive Types](https://iceberg.apache.org/spec/#primitive-types)
+- duckdb-iceberg commit: `dde24195e` (branch `feature-iceberg-schemas`, on top of upstream `21a8edbf2`), release build
+- Existing tests:
+    - `L/iceberg_fixed_type.test`: pass
+    - `CA/create/test_create_table_as.test`: pass (writes 13 types from `test_all_types()`, including min/max values)
+    - `CA/create/test_create_fixed_type.test`: pass (`fixed(L)` writes, wrong-length values rejected)
+    - `CA/maintenance/rewrite_data_files_all_types.test`: pass
+    - `CA/insert/test_create_table_as_with_incorrect_types.test`: pass (`INTERVAL` rejected: "not a valid Iceberg Type")
+    - `SCAN/iceberg_scan.test`: skipped, needs Spark-generated data (`DUCKDB_ICEBERG_HAVE_GENERATED_DATA`)
+- What I tried: `iceberg_schemas()` and `iceberg_scan()` on `DATA/add_columns_with_defaults` (metadata `00003-…`), which has all 14 types. The `test` row is read from Parquet; the `click` and `purchase` rows come from a file written before the columns existed, so their values are the fields' `initial-default` (see the Default values row).
+- Mapping (`src/core/metadata/schema/iceberg_column_definition.cpp`): `boolean`→`BOOLEAN`, `int`→`INTEGER`, `long`→`BIGINT`, `float`→`FLOAT`, `double`→`DOUBLE`, `decimal(P,S)`→`DECIMAL(P,S)`, `date`→`DATE`, `time`→`TIME`, `timestamp`→`TIMESTAMP`, `timestamptz`→`TIMESTAMP WITH TIME ZONE`, `string`→`VARCHAR`, `uuid`→`UUID`, `fixed(L)`→`ICEBERG_FIXED(L)`, `binary`→`BLOB`
+- Result: ✅ read, ✅ write
+- Follow-up: try the write side by hand with `make mock` (DuckDB-only types `TINYINT`, `SMALLINT`, `HUGEINT`, `UBIGINT`: widened or rejected?)
