@@ -149,37 +149,6 @@ Sources: `duckdb/AGENTS.md`, `duckdb/CONTRIBUTING.md`, the repository's `AGENTS.
 - **Reading metadata files directly through a REST catalog:** wrap the lookup and all the file reads in one `BEGIN` … `COMMIT`, because the catalog's storage credentials only last for that transaction.
 - **Location:** `unittest` only runs test files inside the repository. A `.test` file elsewhere (for example in `/tmp`) gives `No tests ran`.
 
-### A minimal catalog test
-
-```
-# name: test/sql/local/catalog_test_config_setup/catalog_agnostic/create/test_my_feature.test
-# description: CREATE TABLE with my feature keeps the column order
-# group: [create]
-
-require-env CATALOG_TEST_CONFIG_SETUP
-
-include test/sql/init_requires
-
-statement ok
-DROP TABLE IF EXISTS my_datalake.default.my_feature;
-
-statement ok
-CREATE TABLE my_datalake.default.my_feature (a INTEGER, b VARCHAR);
-
-query II
-SELECT * FROM my_datalake.default.my_feature;
-----
-```
-
-Run it with:
-
-```
-./build/release/test/unittest --test-config test/configs/mock_native.json \
-  test/sql/local/catalog_test_config_setup/catalog_agnostic/create/test_my_feature.test
-```
-
-Without `--test-config` it is skipped, because `CATALOG_TEST_CONFIG_SETUP` isn't set.
-
 ## `test/` vs. `duckdb/test/`
 
 They belong to two different projects. `duckdb/` is a git submodule: a copy of upstream DuckDB pinned at one commit.
