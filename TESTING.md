@@ -100,6 +100,86 @@ The first failing block stops that file, and the runner prints the SQL, what was
 
 For example, in `test/sql/local/iceberg_scans/iceberg_schemas.test`, `include` loads the extensions, each `query IIIIIII` runs `iceberg_schemas(...)` and compares the seven columns, and the final `statement error` checks that a non-Iceberg table fails with "not an Iceberg table".
 
+## Writing a Test
+
+Sources: `duckdb/AGENTS.md`, `duckdb/CONTRIBUTING.md`, the repository's `AGENTS.md` and `test/sql/local/catalog_test_config_setup/README.md`.
+
+### DuckDB's generic structure (core and extensions)
+
+**1. Prefer sqllogictest.** DuckDB strongly prefers `.test` files over C++ tests. C++ is for things SQL can't express, such as concurrent connections. Framework docs: https://duckdb.org/dev/testing.
+
+**2. A three-line header**, followed by a blank line:
+
+```
+# name: test/sql/local/iceberg_scans/iceberg_schemas.test
+# description: iceberg_schemas lists the top-level fields of every schema of a table
+# group: [iceberg_scans]
+```
+
+- `name` is the file's path from the repository root.
+- `group` is the name of the parent folder, in brackets.
+- `description` is one line saying what the test checks.
+
+**3. Requirements next:** `require <extension>` and `require-env VAR`, so the file is skipped, not failed, when something is missing.
+
+**4. The body:** `statement ok`, `statement error` and `query …` blocks, separated by blank lines (see the table in step 4 above). Errors are matched with `----` plus the message or a `<REGEX>:`.
+
+**5. Naming and speed:**
+
+- Name files `test_<what>.test`, or after the feature (`iceberg_schemas.test`).
+- Expensive tests use the `.test_slow` extension, which only runs in the full suite.
+- Don't add `PRAGMA enable_verification`; DuckDB no longer uses it in new tests.
+
+**6. What to cover:** many tests, different types (numerics, strings, nested types), and incorrect usage and errors, not only the happy path.
+
+### duckdb-iceberg additions
+
+- **Shared requirements:** start the body with `include test/sql/init_requires`. It loads `avro`, `parquet`, `iceberg` and `httpfs`.
+- **Where the test goes:**
+    - `test/sql/local/` for tests without a catalog (local files, `iceberg_scan`).
+    - `test/sql/local/catalog_test_config_setup/catalog_agnostic/` for behavior all REST catalogs share. These tests start with `require-env CATALOG_TEST_CONFIG_SETUP` and use the `my_datalake` catalog that `on_init` attaches.
+    - `test/sql/local/catalog_test_config_setup/catalog_specifc/<catalog>/` (the misspelling is the real folder name) for one catalog's behavior.
+    - `test/sql/local/catalog_test_config_setup/catalog_interop/` when Spark or PyIceberg is involved.
+- **Catalog test hygiene:**
+    - Each test drops and recreates its own tables (`DROP TABLE IF EXISTS …` first).
+    - Shared setup goes in `catalog_agnostic/setup/*.test_setup` and is included after the `require` lines.
+    - Write timestamps with an explicit UTC offset.
+    - Run catalog tests serially, because they share tables and storage.
+- **Catalog limitations:** if one catalog can't do something, add the test to that catalog's `skip_tests` in `test/configs/<catalog>.json` with a reason. Don't weaken the shared test.
+- **Reading metadata files directly through a REST catalog:** wrap the lookup and all the file reads in one `BEGIN` … `COMMIT`, because the catalog's storage credentials only last for that transaction.
+- **Location:** `unittest` only runs test files inside the repository. A `.test` file elsewhere (for example in `/tmp`) gives `No tests ran`.
+
+### A minimal catalog test
+
+```
+# name: test/sql/local/catalog_test_config_setup/catalog_agnostic/create/test_my_feature.test
+# description: CREATE TABLE with my feature keeps the column order
+# group: [create]
+
+require-env CATALOG_TEST_CONFIG_SETUP
+
+include test/sql/init_requires
+
+statement ok
+DROP TABLE IF EXISTS my_datalake.default.my_feature;
+
+statement ok
+CREATE TABLE my_datalake.default.my_feature (a INTEGER, b VARCHAR);
+
+query II
+SELECT * FROM my_datalake.default.my_feature;
+----
+```
+
+Run it with:
+
+```
+./build/release/test/unittest --test-config test/configs/mock_native.json \
+  test/sql/local/catalog_test_config_setup/catalog_agnostic/create/test_my_feature.test
+```
+
+Without `--test-config` it is skipped, because `CATALOG_TEST_CONFIG_SETUP` isn't set.
+
 ## `test/` vs. `duckdb/test/`
 
 They belong to two different projects. `duckdb/` is a git submodule: a copy of upstream DuckDB pinned at one commit.
