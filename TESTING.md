@@ -2,26 +2,15 @@
 
 How to run the extension's tests, what happens when a test runs, and where the pieces live. All commands run from the root of a `duckdb-iceberg` checkout after a build (`make release`). Rebuild after changing code; the test binary doesn't rebuild itself.
 
-## Test Path Abbreviations
-
-The same abbreviations as in [ICEBERG_SUPPORT.md](ICEBERG_SUPPORT.md):
-
-- `L/` = `test/sql/local/`: no services needed
-- `SCAN/` = `test/sql/local/iceberg_scans/`: no services needed
-- `PART/` = `test/sql/local/partitioning/`: no services needed
-- `NC/` = `test/sql/local/native_catalog/`: in-process mock catalog, run with `--test-config test/configs/mock_native.json`
-- `CA/` = `test/sql/local/catalog_test_config_setup/catalog_agnostic/`: needs a REST catalog; `--test-config test/configs/mock_native.json` provides one in-process
-- `DATA/` = `data/persistent/`: test tables used by the tests, readable with `iceberg_scan()`
-
 ## Running a Test
 
-**`L/`, `SCAN/`, `PART/`** (no services):
+Tests that need no services, in `test/sql/local/` (including `iceberg_scans/` and `partitioning/`) but outside the two folders below:
 
 ```
 ./build/release/test/unittest test/sql/local/iceberg_fixed_type.test
 ```
 
-**`CA/` and `NC/`** (in-process mock catalog, still no services):
+Tests that need a catalog, in `test/sql/local/catalog_test_config_setup/catalog_agnostic/` and `test/sql/local/native_catalog/`. The in-process mock catalog provides one, so they still need no services:
 
 ```
 ./build/release/test/unittest --test-config test/configs/mock_native.json \
@@ -55,7 +44,7 @@ CREATE SCHEMA IF NOT EXISTS lake.default;
 
 Stop it with `make mock-stop`.
 
-Local tables in `DATA/` need no catalog at all:
+Local tables in `data/persistent/` need no catalog at all:
 
 ```sql
 SELECT * FROM iceberg_scan('data/persistent/<table>/.../metadata/<version>.metadata.json');
@@ -89,7 +78,7 @@ ATTACH '' AS my_datalake (TYPE ICEBERG, URI 'http://iceberg-mock.invalid', ...);
 CREATE SCHEMA IF NOT EXISTS my_datalake.default;
 ```
 
-The `.invalid` URI never reaches the network: `iceberg_mock` answers the REST calls inside the process. That's why `CA/` and `NC/` tests need no services. With `mock.json`, the URI is the real local server instead, `http://127.0.0.1:19134`. Without `--test-config`, nothing runs here and there's no `my_datalake`, which is why `CA/` tests need a config.
+The `.invalid` URI never reaches the network: `iceberg_mock` answers the REST calls inside the process. That's why the `catalog_agnostic/` and `native_catalog/` tests need no services. With `mock.json`, the URI is the real local server instead, `http://127.0.0.1:19134`. Without `--test-config`, nothing runs here and there's no `my_datalake`, which is why the `catalog_agnostic/` tests need a config.
 
 ### 4. The file runs top to bottom
 
@@ -109,7 +98,7 @@ Placeholders such as `{WORKING_DIRECTORY}` or `{TEMP_DIR}` are replaced before e
 
 The first failing block stops that file, and the runner prints the SQL, what was expected and what came back. If nothing fails, it prints `All tests passed (N assertions in M test cases)`, where each `statement` and `query` counts as one assertion. Skipped files are listed with their reason. Temp directories are cleaned up afterwards.
 
-For example, in `SCAN/iceberg_schemas.test`, `include` loads the extensions, each `query IIIIIII` runs `iceberg_schemas(...)` and compares the seven columns, and the final `statement error` checks that a non-Iceberg table fails with "not an Iceberg table".
+For example, in `test/sql/local/iceberg_scans/iceberg_schemas.test`, `include` loads the extensions, each `query IIIIIII` runs `iceberg_schemas(...)` and compares the seven columns, and the final `statement error` checks that a non-Iceberg table fails with "not an Iceberg table".
 
 ## `test/` vs. `duckdb/test/`
 
@@ -117,7 +106,7 @@ They belong to two different projects. `duckdb/` is a git submodule: a copy of u
 
 **`test/`: the iceberg extension's tests**
 
-- `test/sql/`: the iceberg sqllogictests (`L/`, `CA/`, `NC/`, …)
+- `test/sql/`: the iceberg sqllogictests
 - `test/configs/`: the iceberg configs (`mock.json`, `mock_native.json`, `polaris.json`, …)
 - `test/python/`: PySpark and PyIceberg integration tests
 - `test/native_catalog/`: the C++ in-process mock catalog (`iceberg_mock`)
