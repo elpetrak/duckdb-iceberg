@@ -39,7 +39,9 @@ Each entry records the duckdb-iceberg commit it was checked against, because sup
 | Read | Write | Feature | Spec | Test | Notes |
 |---|---|---|---|---|---|
 | ✅ | ✅ | **Primitive types** (v1: `boolean`, `int`, `long`, `float`, `double`, `decimal(P,S)`, `date`, `time`, `timestamp`, `timestamptz`, `string`, `uuid`, `fixed(L)`, `binary`) | [Primitive Types](https://iceberg.apache.org/spec/#primitive-types) | `L/iceberg_fixed_type.test`, `CA/create/test_create_table_as.test`, `CA/create/test_create_fixed_type.test`, `CA/maintenance/rewrite_data_files_all_types.test`; read by hand: `DATA/add_columns_with_defaults` | `fixed(L)` maps to the extension type `ICEBERG_FIXED(L)`. DuckDB-only types such as `INTERVAL` are rejected on write. See session log 2026-11-06 |
-| ❔ | ❔ | **Nested types** (`struct`, `list`, `map`) | [Nested Types](https://iceberg.apache.org/spec/#nested-types) | `L/nested_types.test`, `CA/irc_nested_types.test` | |
+| ✅ | ✅ | **Nested types: `struct`** (including a struct inside a struct) | [Nested Types](https://iceberg.apache.org/spec/#nested-types) | `CA/irc_nested_types.test`; checked by hand: `DATA/partition_values_missing_edge_cases/default/mixed` (read), `mock_native` write (see session log) | Unique field ids at every level, in the metadata and in Parquet. Null fields, null inner and null outer structs round-trip. Only DuckDB read the written data back (no Spark/PyIceberg check). See session log 2026-11-06 |
+| ❔ | ❔ | **Nested types: `list`** | [Nested Types](https://iceberg.apache.org/spec/#nested-types) | `CA/irc_nested_types.test` | |
+| ❔ | ❔ | **Nested types: `map`** | [Nested Types](https://iceberg.apache.org/spec/#nested-types) | `CA/irc_nested_types.test` | |
 | ❔ | ❔ | **Field docs** | [Nested Types](https://iceberg.apache.org/spec/#nested-types) | `CA/test_column_doc_comment.test` | |
 | ❔ | ❔ | **Multiple schemas** (`schemas`, `current-schema-id`) | [Table Metadata Fields](https://iceberg.apache.org/spec/#table-metadata-fields) | `SCAN/iceberg_schemas.test` | |
 | ❔ | ❔ | **Schema evolution**: add, drop, rename columns and fields | [Schema Evolution](https://iceberg.apache.org/spec/#schema-evolution) | `CA/alter/`, `L/schema_evolve_struct.test` | |
@@ -139,6 +141,21 @@ One entry per session, newest first. Copy this template:
 - Result: <status> because <reason>
 - Follow-up: <issue link / PR idea / none>
 ```
+
+### 2026-11-06: Nested types, `struct` (v1)
+
+- Spec: [Nested Types](https://iceberg.apache.org/spec/#nested-types)
+- duckdb-iceberg commit: `dde24195e` (branch `feature-iceberg-schemas`, on top of upstream `21a8edbf2`), release build
+- Existing tests:
+    - `CA/irc_nested_types.test`: pass (with `mock_native.json`)
+    - `L/nested_types.test`: skipped, needs Spark-generated data (`DUCKDB_ICEBERG_HAVE_GENERATED_DATA`); removed from the row
+- What I tried:
+    - **Read:** `iceberg_scan()` on `DATA/partition_values_missing_edge_cases/default/mixed` (`final.metadata.json`), whose `address` column is `STRUCT(country, city, geo STRUCT(code, label))`. Dot access (`address.geo.code`), filters on inner fields and `unnest(address, recursive := true)` work. Row `id = 9` shows nested `initial-default` values.
+    - **Write** (temporary test with `mock_native.json`): `CREATE TABLE` with the same nested struct, then `INSERT` of a full row, a row with a null field and a null inner struct, and a row with a null outer struct. All three read back correctly.
+    - **Metadata:** every field has its own id, nested ones included: `id`(1), `address`(2), `country`(3), `city`(4), `geo`(5), `code`(6), `label`(7). The table was created as format version 2.
+    - **Parquet:** `parquet_schema()` of the written file has the same field ids at every level.
+- Result: ✅ read, ✅ write for `struct`; `list` and `map` not checked yet
+- Follow-up: check `list` and `map` (for example a list of structs and a map with struct values); check that Spark/PyIceberg read DuckDB-written nested structs (`catalog_interop/`)
 
 ### 2026-11-06: Primitive types (v1)
 
