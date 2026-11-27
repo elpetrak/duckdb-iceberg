@@ -22,14 +22,14 @@ class LogicalUpdate;
 class PhysicalPlanGenerator;
 class PhysicalTableScan;
 
-//! The data files a copy-on-write DELETE rewrites, and the positions it removes from each.
+//! The data files a copy-on-write UPDATE rewrites, and the positions it removes from each.
 struct IcebergCopyOnWriteDeletes {
 	unordered_map<string, unordered_set<int64_t>> rows_by_file;
 	idx_t deleted_count = 0;
 };
 
-//! A DELETE on a table whose write.delete.mode is copy-on-write rewrites every data file that holds a matching row,
-//! instead of writing delete files. This operator is shaped like a join:
+//! A copy-on-write UPDATE rewrites every data file that holds a matching row. (A copy-on-write DELETE used this
+//! operator too; it is now planned as joins, see IcebergCopyOnWriteDelete.) This operator is shaped like a join:
 //!  - the build side (children[1]) is the DELETE's own scan, which yields the file and position of each matching row;
 //!  - the probe side (children[0]) scans the table again, emitting its columns (on V3 followed by the row lineage
 //!    columns _row_id and _last_updated_sequence_number) and then those two virtual columns, and this operator keeps
@@ -56,8 +56,6 @@ public:
 	vector<unique_ptr<Expression>> update_expressions;
 
 public:
-	static PhysicalOperator &PlanDelete(ClientContext &context, PhysicalPlanGenerator &planner, LogicalDelete &op,
-	                                    IcebergTableSchemaVersion &table);
 	static PhysicalOperator &PlanUpdate(ClientContext &context, PhysicalPlanGenerator &planner, LogicalUpdate &op,
 	                                    IcebergTableSchemaVersion &table);
 
@@ -112,6 +110,62 @@ private:
 	                                     vector<idx_t> match_row_id_indexes,
 	                                     vector<unique_ptr<Expression>> update_expressions);
 	void PushKeepScanFilter(const IcebergCopyOnWriteDeletes &deletes) const;
+};
+
+//! A DELETE on a table whose write.delete.mode is copy-on-write rewrites every data file that holds a matching row,
+//! instead of writing delete files. It is planned as
+//!
+//!   WITH raw  AS MATERIALIZED (SELECT filename, file_row_number FROM <the DELETE's scan>),
+//!        dict AS MATERIALIZED (SELECT filename, row_number() OVER () AS file_no
+//!                              FROM (SELECT DISTINCT filename FROM raw))
+//!   SELECT keep.* FROM <table> keep
+//!   JOIN dict ON keep.filename = dict.filename
+//!   ANTI JOIN (SELECT dict.file_no, raw.file_row_number FROM raw JOIN dict USING (filename)) deletee
+//!     ON dict.file_no = deletee.file_no AND keep.file_row_number = deletee.file_row_number
+//!
+//! where on V3 `keep.*` ends with the row lineage columns _row_id and _last_updated_sequence_number, and the kept
+//! rows are written by an IcebergFileRewrite, which replaces the touched files in one snapshot.
+//!
+//! The paths are long, and the anti join's hash table holds one entry per deleted row, so it holds an 8-byte file
+//! number instead: `dict` numbers the touched files, one row per file. `raw` keeps the path, but the scan produces it
+//! as one value per chunk, which the materialized CTE stores compactly. The join with dict, whose build side becomes a
+//! runtime filter on the keep scan's `filename`, skips the untouched files.
+//!
+//! DELETE ... USING can match a row more than once, so `deletee` can hold a position twice. The anti join removes the
+//! row either way, so the number of deleted rows is not counted on `deletee` but on the probe side, where each row
+//! of the table appears once: the rows of the touched files (the join with dict) minus the kept rows (the rows the
+//! writer wrote). The counter of the touched rows also records their files, which the rewrite replaces: a file whose
+//! rows are all deleted produces no kept row, but its rows still pass the join with dict.
+struct IcebergCopyOnWriteDelete {
+	static PhysicalOperator &PlanDelete(ClientContext &context, PhysicalPlanGenerator &planner, LogicalDelete &op,
+	                                    IcebergTableSchemaVersion &table);
+};
+
+//! Passes its rows through unchanged and counts them; with a file column, also records the distinct files
+class IcebergCopyOnWriteRowCounter : public PhysicalOperator {
+public:
+	IcebergCopyOnWriteRowCounter(PhysicalPlan &physical_plan, PhysicalOperator &child,
+	                             optional_idx file_column = optional_idx());
+
+	//! The column with the filename, if the files are recorded
+	optional_idx file_column;
+
+	//! The number of rows that passed; valid once its pipeline has finished
+	idx_t GetCount() const;
+	//! The files of the rows that passed, if recorded; valid once its pipeline has finished
+	const unordered_set<string> &GetFiles() const;
+
+public:
+	unique_ptr<GlobalOperatorState> GetGlobalOperatorState(ClientContext &context) const override;
+	unique_ptr<OperatorState> GetOperatorState(ExecutionContext &context) const override;
+	OperatorResultType Execute(ExecutionContext &context, DataChunk &input, DataChunk &chunk,
+	                           GlobalOperatorState &gstate, OperatorState &state) const override;
+
+	bool ParallelOperator() const override {
+		return true;
+	}
+
+	string GetName() const override;
 };
 
 } // namespace duckdb
